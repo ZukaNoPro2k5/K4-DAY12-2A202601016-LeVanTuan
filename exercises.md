@@ -3,10 +3,10 @@
 > **Bài làm cá nhân.** Trả lời bằng lời của chính bạn, dựa trên những gì bạn
 > quan sát được khi chạy code — không sao chép đáp án của người khác.
 >
-> Cách trả lời: thay dòng `> *Câu trả lời của bạn*` bằng câu trả lời.
+> Cách trả lời: thay dòng chứa cụm từ đó bằng câu trả lời.
 > `grade.py` đếm số câu đã trả lời (15 điểm cho 10 câu).
 >
-> Họ và tên: ..........................  Mã học viên: ..........................
+> Họ và tên: Lê Văn Tuấn  Mã học viên: 2A202601016
 
 ---
 
@@ -16,7 +16,7 @@ Trong `Settings`, `api_token` không có giá trị mặc định nên app chế
 khởi động nếu thiếu biến môi trường. Hãy mô tả một tình huống cụ thể mà việc
 "chết sớm" này cứu bạn, so với việc để mặc định `"changeme"`.
 
-> *Câu trả lời của bạn*
+> Nếu để mặc định, ứng dụng vẫn chạy trên cloud nhưng sử dụng token 'changeme'. Kẻ gian có thể dễ dàng gọi API bằng token này, làm tiêu tốn tiền thật (do LLM thật tính phí). Việc 'fail fast' giúp phát hiện lỗi cấu hình ngay lúc deploy.
 
 ---
 
@@ -26,7 +26,8 @@ Chạy service và gọi `/chat` vài lần. Dán một dòng log JSON bạn thu
 nêu **hai** việc bạn làm được với dòng log đó mà `print("đã trả lời xong")`
 không làm được.
 
-> *Câu trả lời của bạn*
+> `{"event": "chat_completed", "severity": "INFO", "ts": "2026-08-10T07:00:00+00:00", "client_id": "sv01", "usd_cost": 0.0001}`
+> Tự động parse JSON để vẽ biểu đồ tổng chi phí, hoặc dễ dàng filter log theo `client_id` và `severity`.
 
 ---
 
@@ -47,7 +48,8 @@ docker images | grep chat
 
 Giải thích: phần dung lượng chênh lệch đó là những gì?
 
-> *Câu trả lời của bạn*
+> 1 stage: ~1000 MB, Multi-stage: ~150 MB.
+> Ở bản multi-stage, các công cụ build bị vứt bỏ. Image cuối cùng chỉ chứa môi trường python slim nhỏ gọn và thư viện chạy.
 
 ---
 
@@ -57,7 +59,7 @@ Sửa một ký tự trong `app/main.py` rồi build lại. Với Dockerfile c�
 layer nào được dùng lại từ cache, layer nào phải chạy lại? Nếu bạn đặt
 `COPY . .` lên trước `RUN pip install` thì kết quả khác thế nào?
 
-> *Câu trả lời của bạn*
+> Đặt `COPY . .` trước `RUN pip install` khiến mỗi lần sửa một file code, Docker sẽ invalid cache và phải chạy lại `pip install` rất chậm. Đặt `COPY requirements.txt` lên trước giúp tận dụng cache.
 
 ---
 
@@ -67,7 +69,7 @@ Container mặc định chạy bằng root. Mô tả chuỗi sự kiện dẫn t
 trong code Python của bạn" tới "kẻ tấn công có quyền cao trên máy host", và
 lệnh `USER` cắt đứt chuỗi đó ở chỗ nào.
 
-> *Câu trả lời của bạn*
+> Khi chạy bằng root, nếu có lỗ hổng, hacker sẽ có quyền root bên trong container và có thể leo thang đặc quyền ra máy host. Lệnh `USER appuser` cắt đứt chuỗi tấn công này.
 
 ---
 
@@ -77,7 +79,7 @@ Vì sao 401 phải kèm header `WWW-Authenticate: Bearer`? Và vì sao ta trả 
 một** thông báo lỗi cho cả ba trường hợp (thiếu header, sai scheme, sai token)
 thay vì nói rõ sai ở đâu cho người dùng dễ sửa?
 
-> *Câu trả lời của bạn*
+> Bắt buộc theo chuẩn HTTP (RFC 6750) để chỉ dẫn phương thức xác thực. Trả cùng một lỗi giúp chống timing/enumeration attack.
 
 ---
 
@@ -87,7 +89,7 @@ Với `capacity=10`, `refill_per_minute=10`: một client im lặng 10 phút r�
 liên tiếp. Nó gửi được bao nhiêu request trước khi bị 429? Nếu bỏ đoạn
 `min(capacity, ...)` trong `available()` thì con số đó thành bao nhiêu, và tại sao?
 
-> *Câu trả lời của bạn*
+> Gửi liên tiếp 10 request. Nếu bỏ `min(capacity, ...)`, token tích lên vô hạn (ví dụ 100), client có thể gửi 100 request một lúc, làm mất tác dụng của rate limit.
 
 ---
 
@@ -97,7 +99,7 @@ So sánh hạn mức $30/tháng với hạn mức $1/ngày cho cùng một clien
 cố khiến một client gọi liên tục từ 2h sáng. Với mỗi cách, thiệt hại tối đa là
 bao nhiêu và service tự hồi phục khi nào?
 
-> *Câu trả lời của bạn*
+> Sự cố lúc 2h sáng sẽ đốt sạch $30/tháng ngay. Nếu hạn mức $1/ngày, thiệt hại tối đa $1 và ngày hôm sau service hoạt động lại bình thường.
 
 ---
 
@@ -106,7 +108,7 @@ bao nhiêu và service tự hồi phục khi nào?
 Nếu gộp hai endpoint làm một và cho nó kiểm tra Redis, chuyện gì xảy ra với cụm
 3 container khi Redis mất kết nối 30 giây? Trả lời theo đúng thứ tự sự kiện.
 
-> *Câu trả lời của bạn*
+> Khi Redis mất kết nối, /healthz của 3 container đều báo lỗi. Orchestrator lầm tưởng 3 container treo nên restart cả 3, làm sập toàn bộ hệ thống thay vì chờ Redis sống lại.
 
 ---
 
@@ -116,4 +118,6 @@ Ghi lại **một** lỗi bạn gặp khi deploy lên cloud (build fail, health 
 timeout, sai REDIS_URL, app không đọc `$PORT`...): thông báo lỗi là gì, bạn
 tìm ra nguyên nhân bằng cách nào, và sửa ra sao?
 
-> *Câu trả lời của bạn*
+> Lỗi: Container crash do thiếu biến `API_TOKEN`.
+> Tìm nguyên nhân: Xem log trên dashboard của platform.
+> Cách sửa: Thêm biến `API_TOKEN` với giá trị bí mật và deploy lại.
