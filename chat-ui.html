@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zuka AI - Premium Chat Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --surface-color: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(0, 0, 0, 0.08);
+            --primary: #4f46e5;
+            --primary-hover: #6366f1;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --bot-bubble: #ffffff;
+            --bot-bubble-border: rgba(0, 0, 0, 0.05);
+            --user-bubble: #e0e7ff;
+            --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.08), transparent 25%);
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 900px;
+            height: 85vh;
+            background: var(--surface-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeUpIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeUpIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chat-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+        }
+
+        .header-info h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .header-info p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 10px;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 16px 20px;
+            border-radius: 20px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: messageSlideIn 0.4s ease-out forwards;
+        }
+
+        @keyframes messageSlideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.bot {
+            align-self: flex-start;
+            background: var(--bot-bubble);
+            border: 1px solid var(--bot-bubble-border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: var(--user-bubble);
+            border: 1px solid var(--border-color);
+            border-bottom-right-radius: 4px;
+        }
+
+        .meta-info {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .chat-input-container {
+            padding: 20px 30px;
+            border-top: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 15px;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 8px 8px 8px 20px;
+            transition: var(--transition);
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+        }
+
+        input::placeholder {
+            color: var(--text-muted);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            background: var(--surface-color);
+            padding: 12px 20px;
+            border-radius: 20px;
+            border-bottom-left-radius: 4px;
+            border: 1px solid var(--border-color);
+            gap: 5px;
+            align-items: center;
+        }
+
+        .typing-indicator span {
+            width: 6px;
+            height: 6px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="avatar">Z</div>
+            <div class="header-info">
+                <h2>Zuka AI Assistant</h2>
+                <p><span class="status-dot"></span> Đang trực tuyến (Cloud API)</p>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                Xin chào! Tôi là trợ lý AI được deploy trên Railway. Hệ thống đã sẵn sàng với Token Bucket và Cost Guard. Bạn muốn thử nghiệm tính năng gì nào?
+            </div>
+            
+            <div class="typing-indicator" id="typingIndicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="input-wrapper">
+                <input type="text" id="messageInput" placeholder="Nhập tin nhắn để test API..." autocomplete="off" onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()" id="sendBtn">Gửi</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://api-production-d576.up.railway.app/chat";
+        const API_TOKEN = "my-secure-token-123";
+        const CLIENT_ID = "test-user-zuka";
+
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function appendMessage(text, sender, meta = null) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            msgDiv.innerText = text;
+
+            if (meta) {
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'meta-info';
+                metaDiv.innerHTML = `<span>💰 Cost: $${meta.usd_cost.toFixed(5)}</span> <span>📝 Tokens: ${meta.usage.prompt} (in) / ${meta.usage.completion} (out)</span>`;
+                msgDiv.appendChild(metaDiv);
+            }
+
+            chatMessages.insertBefore(msgDiv, typingIndicator);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text) return;
+
+            // Xử lý UI tin nhắn người dùng
+            appendMessage(text, 'user');
+            messageInput.value = '';
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+            typingIndicator.style.display = 'flex';
+            scrollToBottom();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_TOKEN}`,
+                        'X-Client-Id': CLIENT_ID
+                    },
+                    body: JSON.stringify({ message: text })
+                });
+
+                typingIndicator.style.display = 'none';
+
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        appendMessage('⚠️ 429 Lỗi: Hết token (Token Bucket Rate Limit). Hãy đợi 1 phút để hồi token!', 'bot');
+                    } else if (response.status === 401) {
+                        appendMessage('⚠️ 401 Lỗi: Token bảo mật không hợp lệ!', 'bot');
+                    } else if (response.status === 403) {
+                        appendMessage('⚠️ 403 Lỗi: Bạn đã tiêu hết ngân sách ngày hôm nay (Cost Guard).', 'bot');
+                    } else {
+                        appendMessage(`⚠️ Lỗi HTTP: ${response.status}`, 'bot');
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                appendMessage(data.reply, 'bot', data);
+
+            } catch (error) {
+                typingIndicator.style.display = 'none';
+                appendMessage('❌ Không thể kết nối đến máy chủ. Kiểm tra lại mạng hoặc trạng thái deploy.', 'bot');
+                console.error(error);
+            } finally {
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+    </script>
+</body>
+</html>
