@@ -25,7 +25,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -34,10 +34,24 @@ services:
       timeout: 3s
       retries: 5
 
-  # TODO (CP2): khai báo service `chat` ở đây
-  # chat:
-  #   build: .
-  #   ...
+  # Khai báo service chat
+  chat:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Lấy giá trị từ file .env ở máy host
+      API_TOKEN: ${API_TOKEN}
+      # Sử dụng hostname của service redis trong cùng stack
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
 volumes:
   redis-data:

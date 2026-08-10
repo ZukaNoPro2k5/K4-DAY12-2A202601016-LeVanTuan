@@ -4,3 +4,12 @@
 
 .git
 .gitignore
+.env
+__pycache__/
+.venv/
+tests/
+Dockerfile
+docker-compose.yml
+README.md
+LAB_GUIDE.md
+exercises.md

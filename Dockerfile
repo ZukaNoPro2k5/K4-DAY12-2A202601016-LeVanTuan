@@ -23,14 +23,36 @@
 #            docker images day12-chat:prod     # xem dung lượng
 # ═══════════════════════════════════════════════════════════════════
 
-FROM python:3.11
+# Stage 1: builder - Biên dịch và cài đặt thư viện
+FROM python:3.11-slim AS builder
+
+WORKDIR /install
+
+# Chỉ copy requirements.txt trước để tận dụng Docker cache
+COPY requirements.txt .
+
+# Cài đặt thư viện vào thư mục /install
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Stage 2: runtime - Môi trường chạy thực tế, nhỏ gọn
+FROM python:3.11-slim AS runtime
 
 WORKDIR /app
 
+# Copy các thư viện đã được cài đặt từ stage builder
+COPY --from=builder /install /usr/local
+
+# Copy mã nguồn dự án
 COPY . .
 
-RUN pip install -r requirements.txt
+# Tạo user thường để chạy ứng dụng (bảo mật)
+RUN useradd --create-home --uid 10001 appuser
+USER appuser
+
+# Healthcheck để Docker biết ứng dụng có đang sống không
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${PORT:-8000}/healthz').read()" || exit 1
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "app/main.py"]
