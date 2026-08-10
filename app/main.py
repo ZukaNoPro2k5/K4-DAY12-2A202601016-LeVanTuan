@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from functools import lru_cache
 
 from fastapi import Depends, FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 
 from utils.mock_llm import generate_reply
@@ -68,8 +68,17 @@ async def lifespan(_app: FastAPI):
     emit("service_stopped", service=SERVICE_NAME)
 
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="Day 12 Chat Service", version=SERVICE_VERSION, lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
@@ -78,6 +87,13 @@ class ChatRequest(BaseModel):
 # ─────────────────────────────────────────────────────────────
 # Health & readiness
 # ─────────────────────────────────────────────────────────────
+@app.get("/")
+def serve_ui():
+    """Trả về giao diện HTML."""
+    import os
+    file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chat-ui.html")
+    return FileResponse(file_path)
+
 @app.get("/healthz")
 def healthz():
     """Liveness probe — process còn sống không?
@@ -92,7 +108,12 @@ def healthz():
     lời câu hỏi "có cần restart container này không?". Nếu nó phụ thuộc
     Redis, Redis chết một nhịp là cả cụm container bị restart theo.
     """
-    raise NotImplementedError("TODO (CP1/CP4): cài đặt /healthz")
+    # CP1 + CP4: Nếu quá trình shutdown đang diễn ra (draining), trả về lỗi 503
+    if shutdown_guard.draining:
+        return JSONResponse(status_code=503, content={"status": "draining"})
+    
+    # Nếu hoạt động bình thường, trả về 200 OK với thông tin service
+    return {"status": "ok", "service": SERVICE_NAME, "version": SERVICE_VERSION}
 
 
 @app.get("/readyz")
@@ -107,7 +128,16 @@ def readyz(store: ChatStore = Depends(get_store)):
     Khác /healthz ở chỗ: endpoint này ĐƯỢC PHÉP kiểm tra dependency. Load
     balancer dùng nó để quyết định có đẩy request vào instance này không.
     """
-    raise NotImplementedError("TODO (CP4): cài đặt /readyz")
+    # Đang tắt dần, không nhận thêm traffic
+    if shutdown_guard.draining:
+        return JSONResponse(status_code=503, content={"status": "draining"})
+    
+    # Kiểm tra Redis xem có trả lời không
+    if not store.ping():
+        return JSONResponse(status_code=503, content={"status": "not ready", "redis": False})
+        
+    # Hoạt động bình thường
+    return {"status": "ready", "redis": True}
 
 
 # ─────────────────────────────────────────────────────────────
@@ -154,7 +184,45 @@ def chat(
     ``client_id`` do ``verify_bearer_token`` trả về, nên request không có
     token hợp lệ sẽ dừng ở 401 trước khi chạm vào bất cứ dòng nào ở đây.
     """
-    raise NotImplementedError("TODO (CP3/CP4): cài đặt /chat")
+    # 1. Trừ token trong xô
+    bucket.consume(client_id)
+    
+    # 2. Kiểm tra xem có vượt quá ngân sách trong ngày chưa
+    guard.check(client_id)
+    
+    # 3. Lấy lịch sử chat của client (CP4)
+    history = store.history(client_id)
+    
+    # 4. Tạo phản hồi từ model ngôn ngữ
+    result = generate_reply(payload.message, history)
+    
+    # 5. Lưu lại tin nhắn của người dùng và phản hồi của assistant (CP4)
+    store.add_turn(client_id, "user", payload.message)
+    store.add_turn(client_id, "assistant", result["text"])
+    
+    # 6. Ghi nhận chi phí cho request này
+    guard.record(client_id, result["usd_cost"])
+    
+    # 7. Phát ra log có cấu trúc để theo dõi
+    emit(
+        "chat_completed",
+        client_id=client_id,
+        prompt_tokens=result["prompt_tokens"],
+        completion_tokens=result["completion_tokens"],
+        usd_cost=result["usd_cost"]
+    )
+    
+    # 8. Trả về định dạng JSON
+    return {
+        "reply": result["text"],
+        "client_id": client_id,
+        "turns_before": len(history),
+        "usd_cost": result["usd_cost"],
+        "usage": {
+            "prompt": result["prompt_tokens"],
+            "completion": result["completion_tokens"],
+        },
+    }
 
 
 if __name__ == "__main__":

@@ -61,7 +61,28 @@ class TokenBucket:
         Bước 5 quan trọng — thiếu nó thì client im lặng một ngày sẽ tích được
         14.400 token và bắn hết trong một giây.
         """
-        raise NotImplementedError("TODO (CP3): cài đặt available")
+        # Lấy thời gian hiện tại nếu chưa được cung cấp
+        now = now if now is not None else time.time()
+        
+        # Lấy trạng thái hiện tại từ Redis
+        state = self.client.hgetall(self._key(client_id))
+        
+        # Nếu chưa có trạng thái, trả về đầy xô
+        if not state:
+            return float(self.capacity)
+            
+        # Tính toán lượng token còn lại, cộng dồn phần đã nạp thêm
+        # Hỗ trợ lấy giá trị bằng key là bytes hoặc chuỗi
+        tokens_val = state.get(b"tokens", state.get("tokens", 0))
+        ts_val = state.get(b"ts", state.get("ts", 0))
+        
+        tokens = float(tokens_val)
+        last = float(ts_val)
+        
+        tokens += (now - last) * self.refill_per_second
+        
+        # Đảm bảo không vượt quá sức chứa tối đa của xô
+        return min(float(self.capacity), tokens)
 
     def consume(self, client_id: str, now: float | None = None) -> None:
         """Lấy 1 token khỏi xô, hết token thì raise 429.
@@ -85,7 +106,21 @@ class TokenBucket:
         Chú ý ghi lại **cả** ``ts``. Quên cập nhật ``ts`` thì lần sau bạn tính
         phần nạp thêm từ một mốc thời gian đã cũ, và xô tự đầy lại vô tội vạ.
         """
-        raise NotImplementedError("TODO (CP3): cài đặt consume")
+        now = now if now is not None else time.time()
+        tokens = self.available(client_id, now)
+        
+        # Nếu không còn đủ 1 token, từ chối request bằng 429
+        if tokens < 1:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="rate limit exceeded",
+                headers={"Retry-After": str(self.retry_after(tokens))},
+            )
+            
+        # Nếu còn đủ, trừ đi 1 token và cập nhật thời gian
+        key = self._key(client_id)
+        self.client.hset(key, mapping={"tokens": tokens - 1, "ts": now})
+        self.client.expire(key, BUCKET_TTL_SECONDS)
 
     def retry_after(self, tokens: float) -> int:
         """CHO SẴN — còn bao nhiêu giây nữa thì có token tiếp theo."""
